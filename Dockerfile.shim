@@ -1,0 +1,22 @@
+# Build the manager binary
+FROM golang:1.14 as builder
+
+WORKDIR /go/src/github.com/kudobuilder/shim
+COPY shim-controller/ shim-controller/
+COPY go.mod go.mod
+COPY go.sum go.sum
+ENV GO111MODULE on
+
+# Build with ldflags set
+RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -o shim-controller \
+  github.com/kudobuilder/shim/shim-controller
+
+# Copy the controller-manager into a thin image
+FROM debian:buster-20200607-slim
+RUN apt-get update && apt-get install -y --no-install-recommends \
+		ca-certificates \
+	&& rm -rf /var/lib/apt/lists/*
+
+WORKDIR /root/
+COPY --from=builder /go/src/github.com/kudobuilder/shim/shim-controller/shim-controller .
+ENTRYPOINT ["./shim-controller"]
